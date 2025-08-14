@@ -3,5 +3,38 @@
     "id": "1753661998056",
     "title": "campera ",
     "price": 150
+  },
+  {
+    "id": "1754759211129",
+    "title": "Mouse Gamer",
+    "description": "RGB 7200 DPI",
+    "code": "MOU-001",
+    "price": 15000,
+    "status": true,
+    "stock": 30,
+    "category": "perifericos",
+    "thumbnails": []
+  },
+  {
+    "id": "1754759638817",
+    "title": "Mouse Gamer",
+    "description": "RGB 7200 DPI",
+    "code": "MOU-001",
+    "price": 15000,
+    "status": true,
+    "stock": 30,
+    "category": "perifericos",
+    "thumbnails": []
+  },
+  {
+    "id": "1754789396487",
+    "title": "Mouse Gamer",
+    "description": "RGB 7200 DPI",
+    "code": "MOU-001",
+    "price": 15000,
+    "status": true,
+    "stock": 30,
+    "category": "perifericos",
+    "thumbnails": []
   }
 ]

@@ -1,0 +1,95 @@
+{{!< layouts/main}}
+
+<h1 style="text-align:center;">Mi Carrito</h1>
+
+{{#if isEmpty}}
+  <p>Tu carrito está vacío.</p>
+  <a class="btn" href="/products">Ir a productos</a>
+{{else}}
+  <table class="w-full" style="width:100%;max-width:900px;margin:24px auto;">
+    <thead>
+      <tr>
+        <th>Producto</th>
+        <th>Precio</th>
+        <th>Cantidad</th>
+        <th>Subtotal</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each items}}
+      <tr data-row="{{id}}">
+        <td>{{title}}</td>
+        <td>$<span class="price" data-price="{{price}}">{{price}}</span></td>
+
+    
+        <td>
+          <input type="number" name="qty" min="1" value="{{quantity}}" data-pid="{{id}}" style="width:70px;">
+        </td>
+
+        <td>$<span class="subtotal">{{subtotal}}</span></td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+
+  <div style="max-width:900px;margin:12px auto;">
+    <strong>Total: $<span id="cartTotal">{{total}}</span></strong>
+    <div style="margin-top:12px;display:flex;gap:12px;">
+      <a class="btn" href="/products">Seguir comprando</a>
+      <button class="btn secondary" id="clearCartBtn">Vaciar carrito</button>
+    </div>
+  </div>
+{{/if}}
+
+<script>
+  const CID = '{{cartId}}';
+
+  async function putQty(pid, qty){
+    const res = await fetch(`/api/carts/${CID}/products/${pid}`, {
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ quantity: qty })
+    });
+    if(!res.ok){
+      let msg = 'No se pudo actualizar';
+      try { msg = (await res.json()).error || msg } catch {}
+      throw new Error(msg);
+    }
+    return res.json();
+  }
+
+  function recalcTotals(){
+    let total = 0;
+    document.querySelectorAll('tbody tr').forEach(row=>{
+      const price = Number(row.querySelector('.price').dataset.price);
+      const qty   = Number(row.querySelector('input[name="qty"]').value);
+      const sub   = price * qty;
+      row.querySelector('.subtotal').textContent = sub;
+      total += sub;
+    });
+    const t = document.getElementById('cartTotal');
+    if (t) t.textContent = total;
+  }
+
+ 
+  document.querySelectorAll('input[name="qty"]').forEach(input=>{
+    input.addEventListener('change', async ()=>{
+      let q = parseInt(input.value, 10);
+      if (!Number.isInteger(q) || q < 1) { q = 1; input.value = 1; }
+      try {
+        await putQty(input.dataset.pid, q);
+        recalcTotals();
+        if (window.refreshCartCount) refreshCartCount(); 
+      } catch (e) {
+        alert(e.message);
+      }
+    });
+  });
+
+ 
+  document.getElementById('clearCartBtn')?.addEventListener('click', async ()=>{
+    if (!confirm('¿Vaciar carrito?')) return;
+    const res = await fetch(`/api/carts/${CID}`, { method:'DELETE' });
+    if (res.ok) location.reload();
+  });
+</script>

@@ -1,10 +1,65 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <title>Mi tienda</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{title}}</title>
+  <link rel="stylesheet" href="/css/theme.css" />
 </head>
 <body>
-    {{{body}}} <!-- Aquí se inserta el contenido de cada vista -->
+  <nav class="topbar">
+    <a href="/">Mi Tienda</a>
+    <a href="/products">Productos</a>
+    <a href="#" id="goCart">Mi carrito (<span id="cartCount">0</span>)</a>
+  </nav>
+
+    <main class="container">
+    {{{body}}}
+  </main>
+
+  <script>
+    //  helpers globales para carrito 
+    async function ensureCartId() {
+      let cid = localStorage.getItem('cid');
+      if (cid) return cid;
+
+     
+      const fromServer = window.SERVER_CART_ID || null;
+      if (fromServer) {
+        localStorage.setItem('cid', fromServer);
+        return fromServer;
+      }
+
+      
+      const r = await fetch('/api/carts', { method: 'POST' });
+      const d = await r.json();
+      cid = d?.payload?._id || d?._id || null;
+      if (cid) localStorage.setItem('cid', cid);
+      return cid;
+    }
+
+    async function refreshCartCount() {
+      const cid = localStorage.getItem('cid');
+      if (!cid) return; // nada que contar
+      const r = await fetch(`/api/carts/${cid}`);
+      if (!r.ok) return;
+      const d = await r.json();
+      const count = (d?.payload?.products || []).reduce((a,p)=> a + (p.quantity||0), 0);
+      const el = document.getElementById('cartCount');
+      if (el) el.textContent = count;
+    }
+
+    // Ir al carrito desde el navbar
+    document.getElementById('goCart')?.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const cid = await ensureCartId();
+      if (cid) window.location.href = `/carts/${cid}`;
+    });
+
+    // actualizar al cargar
+    document.addEventListener('DOMContentLoaded', refreshCartCount);
+    // exponer para que otras vistas puedan llamarlo
+    window.refreshCartCount = refreshCartCount;
+  </script>
 </body>
 </html>

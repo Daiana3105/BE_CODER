@@ -1,0 +1,30 @@
+{{!< layouts/main}}
+
+<h1 style="margin:0 0 8px 0;">{{product.title}}</h1>
+<p class="pill">{{product.category}}</p>
+<p style="color:#555">{{product.description}}</p>
+<p><strong>Precio: ${{product.price}}</strong></p>
+
+{{#if cartId}}
+  <div style="display:flex; gap:8px; align-items:center;">
+    <input id="qty" type="number" min="1" value="1" style="width:80px" />
+    <button class="btn" onclick="addToCart('{{cartId}}','{{product._id}}')">Agregar al carrito</button>
+  </div>
+{{/if}}
+
+<script>
+  async function addToCart(cid, pid) {
+    const q = Number(document.getElementById('qty').value) || 1;
+    try {
+      const res = await fetch(`/api/carts/${cid}/products/${pid}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ quantity: q })
+      });
+      if (!res.ok) throw new Error((await res.json()).error || res.status);
+      alert('Agregado ✅');
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  }
+</script>

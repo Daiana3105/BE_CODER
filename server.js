@@ -1,60 +1,50 @@
-import express from 'express';
-import { createServer } from 'http';
-import { Server } from 'socket.io';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import handlebars from 'express-handlebars';
+// server.js
+console.log("🚀 Arrancando desde server.js");
+import { createServer } from "http";
+import { Server } from "socket.io";
+import app from "./src/app.js";
+import { connectMongo } from "./src/config/mongo.js"; 
+import MongoProductManager from './src/managers/MongoProductManager.js';
 
-import viewsRouter from './src/routes/views.router.js'; // tu router para vistas
-import ProductManager from './src/managers/ProductManager.js';
+const PORT = 8080;
 
-const app = express();
+// Crear servidor HTTP a partir de app
 const httpServer = createServer(app);
+
+// Inicializar socket.io
 const io = new Server(httpServer);
 
-// --- Configuración de Handlebars ---
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Manager para la vista realtime (podés migrarlo a Mongo después)
+const productManager = new MongoProductManager();
 
-app.engine('handlebars', handlebars.engine());
-app.set('view engine', 'handlebars');
-app.set('views', path.join(__dirname, 'src/views'));
+io.on("connection", async (socket) => {
+  console.log("Cliente conectado");
 
-// --- Middlewares ---
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, 'src/public')));
-
-// --- Rutas ---
-app.use('/', viewsRouter);
-
-const productManager = new ProductManager();
-
-// --- WebSockets ---
-io.on('connection', async (socket) => {
-  console.log('Cliente conectado');
-
-  // Enviar lista inicial de productos
+  // Enviar lista inicial
   const products = await productManager.getProducts();
-  socket.emit('updateProducts', products);
+  socket.emit("updateProducts", products);
 
-  // producto nuevo
-  socket.on('newProduct', async (data) => {
-    await productManager.addProduct(data);
-    const updatedProducts = await productManager.getProducts();
-    io.emit('updateProducts', updatedProducts); // actualizar a todos
+  // Crear producto
+  socket.on("newProduct", async (product) => {
+    await productManager.create(product); 
+    const updated = await productManager.getProducts();
+    io.emit("updateProducts", updated);
   });
 
-  // eliminar producto
-  socket.on('deleteProduct', async (id) => {
-    await productManager.deleteProduct(id);
-    const updatedProducts = await productManager.getProducts();
-    io.emit('updateProducts', updatedProducts); // actualizar a todos
+  // Eliminar producto
+  socket.on("deleteProduct", async (id) => {
+    await productManager.delete(id); 
+    const updated = await productManager.getProducts();
+    io.emit("updateProducts", updated);
   });
 });
 
-// --- Inicializar servidor ---
-const PORT = 8080;
-httpServer.listen(PORT, () => {
-  console.log(`Servidor escuchando en http://localhost:${PORT}`);
-});
+// Arranque ordenado
+async function start() {
+  await connectMongo(); 
+  httpServer.listen(PORT, () => {
+    console.log(`Servidor escuchando en http://localhost:${PORT}`);
+  });
+}
+
+start();

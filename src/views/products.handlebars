@@ -1,0 +1,144 @@
+{{!< layouts/main}}
+
+<h1 style="margin:0 0 12px 0;">Listado de Productos</h1>
+
+<form method="get" action="/products" style="display:flex; gap:8px; margin: 12px 0;">
+  <input type="text" name="query" placeholder="category:Tazas o status:true/false" value="{{query}}" />
+  <select name="sort">
+    <option value="">Sin orden</option>
+    <option value="asc"  {{#if (eq sort "asc")}}selected{{/if}}>Precio ↑</option>
+    <option value="desc" {{#if (eq sort "desc")}}selected{{/if}}>Precio ↓</option>
+  </select>
+  <input type="number" min="1" name="limit" value="{{limit}}" style="width:90px" />
+  <button class="btn secondary" type="submit">Aplicar</button>
+</form>
+
+{{#if products.length}}
+  <section class="grid">
+    {{#each products}}
+    <article class="card">
+      <div class="card__media">
+        {{#if thumbnails.[0]}}
+          <img src="{{thumbnails.[0]}}" alt="{{title}}" style="width:100%;height:100%;object-fit:cover">
+        {{else}}
+          <span class="badge gray">Sin imagen</span>
+        {{/if}}
+      </div>
+
+      <div class="card__body">
+        <div class="flex">
+          <h3 class="card__title">{{title}}</h3>
+          <span class="badge right">{{category}}</span>
+        </div>
+
+        <p class="card__desc">{{description}}</p>
+
+        <div class="flex">
+          <div class="price">${{price}}</div>
+         
+          <button class="btn right" type="button" onclick="addToCart('{{_id}}')">
+            Agregar
+          </button>
+        </div>
+      </div>
+    </article>
+    {{/each}}
+  </section>
+
+  {{#if totalPages}}
+  <nav class="pager">
+    {{#if hasPrevPage}}<a href="{{prevLinkView}}">← Anterior</a>{{/if}}
+    <span class="current">{{page}}</span>
+    {{#if hasNextPage}}<a href="{{nextLinkView}}">Siguiente →</a>{{/if}}
+  </nav>
+  {{/if}}
+{{else}}
+  <p>No hay productos para mostrar.</p>
+{{/if}}
+
+<nav class="pager" style="margin-top:16px;">
+  <a class="btn secondary" href="{{prevLinkView}}" {{#unless hasPrevPage}}disabled{{/unless}}>← Anterior</a>
+  <span>Página {{page}} de {{totalPages}}</span>
+  <a class="btn secondary" href="{{nextLinkView}}" {{#unless hasNextPage}}disabled{{/unless}}>Siguiente →</a>
+</nav>
+
+<script>
+  // cartId entregado por el servidor (si existe)
+  const SERVER_CART_ID = {{#if cartId}}"{{cartId}}"{{else}}null{{/if}};
+
+  async function ensureCartId() {
+    let cid = localStorage.getItem('cid');
+    if (cid) return cid;
+
+    if (SERVER_CART_ID) {
+      localStorage.setItem('cid', SERVER_CART_ID);
+      return SERVER_CART_ID;
+    }
+
+    const res = await fetch('/api/carts', { method: 'POST' });
+    if (!res.ok) throw new Error('No se pudo crear carrito');
+    const data = await res.json();
+    cid = data?.payload?._id || data?._id || null;
+    if (!cid) throw new Error('Respuesta inesperada al crear carrito');
+    localStorage.setItem('cid', cid);
+    return cid;
+  }
+
+  async function addToCart(pid, goToCart = false) {
+    try {
+      const cid = await ensureCartId();
+      const res = await fetch(`/api/carts/${cid}/products/${pid}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ quantity: 1 })
+      });
+      if (!res.ok) {
+        let msg = 'Error al agregar';
+        try { msg = (await res.json()).error || msg } catch {}
+        throw new Error(msg);
+      }
+      if (goToCart) {
+        window.location.href = `/carts/${cid}`;
+      } else {
+        flash('Producto agregado ✅');
+        refreshCartCount();
+      }
+    } catch (err) {
+      flash('Error: ' + err.message);
+    }
+  }
+
+  // Toast simple
+  function flash(msg) {
+    let el = document.getElementById('flash-msg');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'flash-msg';
+      el.style.position = 'fixed';
+      el.style.right = '12px';
+      el.style.bottom = '12px';
+      el.style.padding = '10px 14px';
+      el.style.borderRadius = '10px';
+      el.style.background = '#222';
+      el.style.color = '#fff';
+      el.style.zIndex = 9999;
+      document.body.appendChild(el);
+    }
+    el.textContent = msg;
+    el.style.opacity = 1;
+    setTimeout(() => el.style.opacity = 0, 1600);
+  }
+
+  
+  async function refreshCartCount() {
+    const cid = localStorage.getItem('cid');
+    if (!cid) return;
+    const r = await fetch(`/api/carts/${cid}`);
+    if (!r.ok) return;
+    const d = await r.json();
+    const count = (d?.payload?.products || []).reduce((a, p) => a + (p.quantity || 0), 0);
+    const el = document.getElementById('cartCount');
+    if (el) el.textContent = count;
+  }
+  refreshCartCount();
+</script>
